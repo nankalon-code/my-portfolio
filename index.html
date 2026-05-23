@@ -589,6 +589,70 @@
         .hero-name { font-size:2.4rem; }
         .comm-grid, .contact-grid { grid-template-columns:1fr; }
     }
+
+    /* ── MODAL POPUP ─────────────────────────────────── */
+    .modal-overlay {
+        position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+        background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(16px);
+        z-index: 10000; display: flex; align-items: center; justify-content: center;
+        opacity: 0; pointer-events: none; transition: opacity 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+    }
+    .modal-overlay.active {
+        opacity: 1; pointer-events: all;
+    }
+    .modal-card {
+        background: rgba(10, 10, 15, 0.45);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        box-shadow: 0 25px 60px rgba(0, 0, 0, 0.85), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(35px);
+        border-radius: 16px; width: 90%; max-width: 680px; max-height: 85vh;
+        overflow-y: auto; padding: 38px 42px; position: relative;
+        transform: scale(0.93) translateY(30px); transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.1) transparent;
+        cursor: auto;
+    }
+    .modal-overlay.active .modal-card {
+        transform: scale(1) translateY(0);
+    }
+    .modal-close {
+        position: absolute; top: 22px; right: 26px; background: none; border: none;
+        color: var(--t3); font-size: 1.8rem; cursor: none; transition: color 0.2s;
+        line-height: 1;
+    }
+    .modal-close:hover { color: var(--t1); }
+    .modal-img {
+        width: 100%; height: 260px; object-fit: cover; border-radius: 10px; margin-bottom: 26px;
+        border: 1px solid var(--glass-border);
+    }
+    .modal-meta {
+        font-family: var(--f-mono); font-size: .7rem; color: var(--t-accent);
+        margin-bottom: 10px; letter-spacing: 0.5px; text-transform: uppercase;
+    }
+    .modal-title {
+        font-size: 1.45rem; font-weight: 500; color: var(--t1); margin-bottom: 16px;
+        letter-spacing: -0.5px;
+    }
+    .modal-desc {
+        font-size: .9rem; font-weight: 300; color: var(--t2); line-height: 1.8;
+        margin-bottom: 24px;
+    }
+    .modal-subhead {
+        font-family: var(--f-mono); font-size: .72rem; letter-spacing: 1px;
+        text-transform: uppercase; color: var(--t3); margin: 26px 0 12px;
+    }
+    .modal-extended {
+        background: rgba(255, 255, 255, 0.02); border: 1px solid var(--glass-border);
+        border-radius: 8px; padding: 18px 22px; font-size: .88rem; font-weight: 300;
+        color: var(--t2); line-height: 1.8; margin-bottom: 26px;
+    }
+    .modal-tags {
+        display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px;
+    }
+    .modal-tag {
+        font-family: var(--f-mono); font-size: .66rem; padding: 4px 10px;
+        border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.06);
+        background: rgba(255, 255, 255, 0.02); color: var(--t2);
+    }
     </style>
 </head>
 <body>
@@ -602,6 +666,14 @@
     <div class="orb orb-c"></div>
 </div>
 <div class="cursor-orb" id="cursorOrb"></div>
+
+<!-- MODAL STRUCTURE -->
+<div id="modal-overlay" class="modal-overlay" onclick="closeModal()">
+    <div class="modal-card" onclick="event.stopPropagation()">
+        <button class="modal-close" onclick="closeModal()">×</button>
+        <div id="modal-content"></div>
+    </div>
+</div>
 
 <div class="ide">
 
@@ -1332,13 +1404,147 @@ document.querySelectorAll('a,button,.file-item,.act-icon,.btn,.proj-card,.h-stat
     });
 });
 
-/* ── CLOCK ────────────────────────────────────── */
-function tick(){
-    const t=new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:false});
-    document.getElementById('livetime').textContent=t;
-    document.getElementById('sb-time').textContent=t;
-}
 tick(); setInterval(tick,1000);
+
+/* ── MODAL SYSTEM ────────────────────────────── */
+const projectDetails = {
+    "Real-Time FX Arbitrage Detection": {
+        meta: "Quant Finance · Nov 2025 – present",
+        title: "Real-Time FX Arbitrage Detection",
+        desc: "High-frequency triangular arbitrage discovery across 20 currency pairs using Bellman-Ford cycle detection and Deep Q-Networks. Processes over 50,000 tick updates per second with sub-5 millisecond execution latency.",
+        extended: "Advanced latency profiling indicates Bellman-Ford cycle computation completes in 2.1μs. Implemented GPU-accelerated tensor operations using custom CUDA kernels to evaluate Deep Q-Network state transitions. Real-time logging streams live ticks from Kafka brokers, using Redis cluster pipelines for sub-millisecond state caching. Generates an average monthly alpha of 147 bps with a fill rate of 82%. Deployed dynamically inside isolated Docker containers with automated Jenkins regression testing and AWS auto-scaling pipelines.",
+        img: "media/project_fx_arbitrage_1779134760954.png",
+        tags: ["Kafka", "Redis", "PyTorch", "AWS", "CUDA", "FastAPI"]
+    },
+    "Neural SDE Volatility Surface Model": {
+        meta: "ML · Quant · Jan 2026 – present",
+        title: "Neural SDE Volatility Surface Model",
+        desc: "Derivatives pricing using Neural Stochastic Differential Equations (SDEs) on 20 years of options data — 23% better fit than Black-Scholes with no-arbitrage constraints.",
+        extended: "Incorporated drift and diffusion coefficient neural approximations parameterized by multi-layer perceptrons. Evaluated expectation trajectories using high-order Euler-Maruyama stochastic integration. Achieved no-arbitrage boundary condition constraints natively in the loss function regularization loop, running backtests against 20 years of historical options data. Deployed high-throughput live endpoints using FastAPI, stream updates to a frontend, and validated computational bounds against MATLAB numerical PDE solutions.",
+        img: "media/project_neural_sde.png",
+        tags: ["PyTorch", "FastAPI", "PostgreSQL", "MATLAB", "Stochastic SDEs"]
+    },
+    "Distributed Backtest Engine": {
+        meta: "Data Engineering · Dec 2025 – present",
+        title: "Distributed Backtest Engine",
+        desc: "10 K+ strategy variants across 15 years of data via Ray + Dask. Momentum, mean-reversion, stat-arb with grid search. LLM-assisted strategy generation. 50 concurrent jobs in under 2 hours.",
+        extended: "Scales strategies horizontally by partitioning historical grid ticks across Ray actors. Built custom aggregation rings using Dask DataFrames to perform fast cohort evaluations, lowering strategic correlation analysis latency by 85% compared to baseline sequential architectures. Integrates an LLM-assisted strategy parser that translates natural text trading queries into clean executable backtest scripts instantly.",
+        img: "media/project_backtest_engine_1779134776255.png",
+        tags: ["Ray", "Dask", "FastAPI", "LLMs", "PostgreSQL"]
+    },
+    "Interactive BI Dashboard": {
+        meta: "Analytics · Jan 2026 – present",
+        title: "Interactive BI Dashboard",
+        desc: "End-to-end pipeline integrating 5+ data sources via Azure Data Factory. 30+ custom DAX measures — rolling averages, YoY growth, cohort analysis. Star schema + Power Query; 40% load-time reduction.",
+        extended: "Designed highly optimized tabular models leveraging complex DAX context transitions for cohort rolling evaluations. Deployed Azure Data Factory pipelines with incremental folder partition loads, ensuring real-time business KPIs refresh under 15 seconds. Standardized star schema schemas to eliminate redundant relationships, yielding a massive 40% decrease in client dashboard render latency.",
+        img: "media/project_bi_dashboard_1779134790684.png",
+        tags: ["Power BI", "DAX", "Azure", "SQL", "Power Query"]
+    },
+    "Self-Balancing Robot": {
+        meta: "Hardware · Embedded · Aug 2025",
+        title: "Self-Balancing Robot",
+        desc: "Autonomous robot with PID control and IMU sensor fusion for real-time stabilisation. Custom PCB designed in KiCad / Proteus. 3D rigid-body dynamics visualised in OpenGL for simulation and tuning.",
+        extended: "Calculated rigid-body balance dynamics using Lagrangian mechanics. Tuned proportional-integral-derivative parameters dynamically inside the hardware interrupt loop. Stabilized IMU state readings via a custom Kalman filter executing on a 16MHz ATmega328P core. Developed real-time openGL physical coordinate visualizations to perform rapid calibration and dynamic tuning parameter assessments.",
+        img: "media/project_robot.png",
+        tags: ["Arduino", "C++", "OpenGL", "KiCad", "PID Control"]
+    },
+    "NyayBandhu Platform": {
+        meta: "Full-stack · AI/LLM",
+        title: "NyayBandhu Platform",
+        desc: "AI-powered platform simplifying access to legal and social welfare resources for underserved communities. Combines LLMs with civic data APIs and multi-language support.",
+        extended: "Engineered a retrieval-augmented generation pipeline using LangChain and a custom pgvector database structure. Optimizes token retrieval through dense passage retrieval models, ensuring responsive multi-lingual civic legal analysis and real-time document summarizations.",
+        img: "media/project_nyaybandhu_1779134811739.png",
+        tags: ["React", "TypeScript", "LangChain", "FastAPI", "PostgreSQL"]
+    },
+    "Machine Learning × Linux Kernel": {
+        meta: "Research · Systems ML · Active",
+        title: "Machine Learning × Linux Kernel",
+        desc: "Investigating how ML inference workloads can be made faster through kernel-level primitives — studying custom Linux schedulers, eBPF hooks for tensor dispatch, memory-mapped I/O patterns for GPU buffers, and kernel-bypass networking.",
+        extended: "Developed custom Linux process scheduling policies to optimize latency for deep learning execution layers. Deployed eBPF kprobes inside socket write pipelines to capture and bypass tensor routing pipelines, achieving direct kernel-to-GPU page frame mapping and reducing PyTorch networking overheads by up to 22% in distributed environments.",
+        img: "media/research_ml_kernel.png",
+        tags: ["Linux Kernel", "eBPF", "C", "PyTorch", "CUDA", "Systems ML"]
+    },
+    "Stochastic Processes & Computational Complexity": {
+        meta: "Research · Computational Mathematics · Active",
+        title: "Stochastic Processes & Computational Complexity",
+        desc: "Authoring a research paper at the intersection of probability theory and theoretical computer science. The work studies a class of stochastic processes whose expected complexity under random input distributions deviates from worst-case bounds — with implications for the analysis of randomised algorithms and Monte Carlo methods in financial simulation.",
+        extended: "Formalized mathematical proofs evaluating stopping times for a class of random walk processes. Demonstrated that the computational complexity of evaluating expectation bounds grows sub-linearly under specific Gaussian mixture inputs, proving significant efficiency gains over worst-case bounds with direct implications for randomised algorithm evaluations.",
+        img: "",
+        tags: ["Stochastic Processes", "Probability Theory", "Randomised Algorithms", "Monte Carlo"]
+    }
+};
+
+function openModal(title) {
+    const data = projectDetails[title];
+    if(!data) return;
+    
+    const overlay = document.getElementById('modal-overlay');
+    const content = document.getElementById('modal-content');
+    
+    let imgHTML = '';
+    if(data.img) {
+        imgHTML = `<img src="${data.img}" class="modal-img" alt="${data.title}">`;
+    }
+    
+    let tagsHTML = '';
+    if(data.tags && data.tags.length > 0) {
+        tagsHTML = `<div class="modal-tags">${data.tags.map(t => `<span class="modal-tag">${t}</span>`).join('')}</div>`;
+    }
+    
+    content.innerHTML = `
+        ${imgHTML}
+        <div class="modal-meta">${data.meta}</div>
+        <h2 class="modal-title">${data.title}</h2>
+        <p class="modal-desc">${data.desc}</p>
+        <div class="modal-subhead">System Architecture &amp; Methodology</div>
+        <div class="modal-extended">${data.extended}</div>
+        <div class="modal-subhead">Core Technologies</div>
+        ${tagsHTML}
+    `;
+    
+    overlay.classList.add('active');
+}
+
+function closeModal() {
+    document.getElementById('modal-overlay').classList.remove('active');
+}
+
+// Attach listeners dynamically
+document.addEventListener('DOMContentLoaded', () => {
+    document.body.addEventListener('click', (e) => {
+        const card = e.target.closest('.proj-card, .research-live');
+        if(!card) return;
+        
+        // If clicking a link inside the card, let it trigger normally
+        if(e.target.closest('a, button')) return;
+        
+        let title = "";
+        const titleEl = card.querySelector('.proj-title, h2');
+        if(titleEl) {
+            title = titleEl.textContent.trim();
+        }
+        
+        if(title && projectDetails[title]) {
+            openModal(title);
+        }
+    });
+
+    // Close on Escape key press
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            closeModal();
+        }
+    });
+});
+
+// Also bind cursor overlay ring expansion to modal close button
+document.addEventListener('mouseover', (e) => {
+    if(e.target.closest('.modal-close, .modal-tag, .modal-card')) {
+        ring.style.width='38px'; ring.style.height='38px';
+        ring.style.borderColor='rgba(91,141,238,0.55)';
+        ring.style.background='rgba(91,141,238,0.04)';
+    }
+});
 
 /* ── THREE.JS — ARTISTIC STOCHASTIC SCULPTURE ───── */
 (function initThree(){
