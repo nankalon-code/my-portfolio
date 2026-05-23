@@ -1404,6 +1404,14 @@ document.querySelectorAll('a,button,.file-item,.act-icon,.btn,.proj-card,.h-stat
     });
 });
 
+/* ── CLOCK ────────────────────────────────────── */
+function tick(){
+    const t=new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:false});
+    const lt = document.getElementById('livetime');
+    const st = document.getElementById('sb-time');
+    if(lt) lt.textContent=t;
+    if(st) st.textContent=t;
+}
 tick(); setInterval(tick,1000);
 
 /* ── MODAL SYSTEM ────────────────────────────── */
@@ -1583,12 +1591,12 @@ document.addEventListener('mouseover', (e) => {
     // Premium Matte Marble Material
     const marbleMat = new THREE.MeshStandardMaterial({
         color: 0xffffff,
-        roughness: 0.15,
-        metalness: 0.05,
+        roughness: 0.12,
+        metalness: 0.08,
         side: THREE.DoubleSide,
         transparent: true,
-        opacity: 0.88,
-        emissive: 0x050b18
+        opacity: 0.90,
+        emissive: 0x0a1228
     });
 
     // Create Slices (Horizontal Concentric Arcs mapping a stylized bust)
@@ -1633,87 +1641,78 @@ document.addEventListener('mouseover', (e) => {
         rightShell.add(rightRib);
     }
 
-    // Stochastic Fluid Particles (swirling inside & blooming out)
-    const particleCount = 2800;
-    const pPositions = new Float32Array(particleCount * 3);
-    const pColors = new Float32Array(particleCount * 3);
-    const pVelocities = [];
-    const pOriginalPositions = [];
+    // Stochastic Fluid Particles (5 distinct colored systems for maximum vibrancy & compatibility)
+    function createGlowTexture(r, g, b) {
+        const c = document.createElement('canvas');
+        c.width = 64; c.height = 64;
+        const ctx = c.getContext('2d');
+        const gr = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+        gr.addColorStop(0, `rgba(${r},${g},${b},1)`);
+        gr.addColorStop(0.25, `rgba(${r},${g},${b},0.7)`);
+        gr.addColorStop(0.5, `rgba(${r},${g},${b},0.25)`);
+        gr.addColorStop(1, `rgba(${r},${g},${b},0)`);
+        ctx.fillStyle = gr; ctx.fillRect(0, 0, 64, 64);
+        const tex = new THREE.CanvasTexture(c);
+        tex.needsUpdate = true;
+        return tex;
+    }
 
-    // Colors matching the classical marble + blooming floral & iridescent splash palette:
-    // Cobalt, deep blue, soft violet, neon cyan, pearl white
-    const palette = [
-        new THREE.Color(0x0f3cf0), // cobalt
-        new THREE.Color(0x5b1fe0), // indigo
-        new THREE.Color(0xd94ce8), // iridescent pink
-        new THREE.Color(0x00e5ff), // cyan
-        new THREE.Color(0xffffff)  // pearl white
+    const particleGroup = new THREE.Group();
+    scene.add(particleGroup);
+
+    const colors = [
+        { r: 15, g: 60, b: 240, count: 900 },  // cobalt blue
+        { r: 91, g: 31, b: 224, count: 700 },  // indigo
+        { r: 217, g: 76, b: 232, count: 600 }, // iridescent pink
+        { r: 0, g: 229, b: 255, count: 400 },  // neon cyan
+        { r: 255, g: 255, b: 255, count: 200 } // white
     ];
 
-    for (let i = 0; i < particleCount; i++) {
-        // Initialize within a tight central spherical bundle
-        const r = Math.random() * 0.25;
-        const theta = Math.random() * Math.PI * 2;
-        const phi = Math.acos((Math.random() * 2) - 1);
+    const systems = [];
 
-        const x = r * Math.sin(phi) * Math.cos(theta);
-        const y = r * Math.sin(phi) * Math.sin(theta);
-        const z = r * Math.cos(phi);
+    colors.forEach(col => {
+        const pPositions = new Float32Array(col.count * 3);
+        const pVelocities = [];
 
-        pPositions[i * 3] = x;
-        pPositions[i * 3 + 1] = y;
-        pPositions[i * 3 + 2] = z;
+        for (let i = 0; i < col.count; i++) {
+            const r = Math.random() * 0.25;
+            const theta = Math.random() * Math.PI * 2;
+            const phi = Math.acos((Math.random() * 2) - 1);
 
-        pOriginalPositions.push(new THREE.Vector3(x, y, z));
-        pVelocities.push(new THREE.Vector3(
-            (Math.random() - 0.5) * 0.15,
-            (Math.random() - 0.5) * 0.15,
-            (Math.random() - 0.5) * 0.15
-        ));
+            pPositions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
+            pPositions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
+            pPositions[i * 3 + 2] = r * Math.cos(phi);
 
-        // Color selection probability
-        let col;
-        const rand = Math.random();
-        if (rand < 0.35) col = palette[0];
-        else if (rand < 0.60) col = palette[1];
-        else if (rand < 0.80) col = palette[2];
-        else if (rand < 0.93) col = palette[3];
-        else col = palette[4];
+            pVelocities.push(new THREE.Vector3(
+                (Math.random() - 0.5) * 0.15,
+                (Math.random() - 0.5) * 0.15,
+                (Math.random() - 0.5) * 0.15
+            ));
+        }
 
-        pColors[i * 3] = col.r;
-        pColors[i * 3 + 1] = col.g;
-        pColors[i * 3 + 2] = col.b;
-    }
+        const pGeometry = new THREE.BufferGeometry();
+        pGeometry.setAttribute('position', new THREE.BufferAttribute(pPositions, 3));
 
-    const pGeometry = new THREE.BufferGeometry();
-    pGeometry.setAttribute('position', new THREE.BufferAttribute(pPositions, 3));
-    pGeometry.setAttribute('color', new THREE.BufferAttribute(pColors, 3));
+        const pMaterial = new THREE.PointsMaterial({
+            size: 0.12,
+            sizeAttenuation: true,
+            map: createGlowTexture(col.r, col.g, col.b),
+            transparent: true,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false,
+            opacity: 0.95
+        });
 
-    // Glow Texture generator
-    function createGlowTexture() {
-        const c = document.createElement('canvas');
-        c.width = 32; c.height = 32;
-        const ctx = c.getContext('2d');
-        const gr = ctx.createRadialGradient(16, 16, 0, 16, 16, 16);
-        gr.addColorStop(0, 'rgba(255,255,255,1)');
-        gr.addColorStop(0.2, 'rgba(255,255,255,0.7)');
-        gr.addColorStop(0.5, 'rgba(255,255,255,0.25)');
-        gr.addColorStop(1, 'rgba(255,255,255,0)');
-        ctx.fillStyle = gr; ctx.fillRect(0, 0, 32, 32);
-        return new THREE.CanvasTexture(c);
-    }
+        const points = new THREE.Points(pGeometry, pMaterial);
+        particleGroup.add(points);
 
-    const pMaterial = new THREE.PointsMaterial({
-        size: 0.08,
-        map: createGlowTexture(),
-        transparent: true,
-        blending: THREE.AdditiveBlending,
-        depthWrite: false,
-        vertexColors: true
+        systems.push({
+            geometry: pGeometry,
+            velocities: pVelocities,
+            count: col.count,
+            material: pMaterial
+        });
     });
-
-    const particleSystem = new THREE.Points(pGeometry, pMaterial);
-    scene.add(particleSystem);
 
     // Mouse tilt & interactive splitting
     let tX = 0, tY = 0, cX = 0, cY = 0;
@@ -1769,54 +1768,59 @@ document.addEventListener('mouseover', (e) => {
         rightShell.rotation.x = rotationX;
 
         // Animate fluid particles
-        const positions = pGeometry.attributes.position.array;
-        const speedMultiplier = 1.0 + hoverState * 4.0;
+        systems.forEach(sys => {
+            const positions = sys.geometry.attributes.position.array;
+            const speedMultiplier = 1.0 + hoverState * 4.0;
 
-        for (let i = 0; i < particleCount; i++) {
-            const px = positions[i * 3];
-            const py = positions[i * 3 + 1];
-            const pz = positions[i * 3 + 2];
+            for (let i = 0; i < sys.count; i++) {
+                const px = positions[i * 3];
+                const py = positions[i * 3 + 1];
+                const pz = positions[i * 3 + 2];
 
-            // 3D vector flowfield combining twin vortices & stochastic sin waves
-            const fx = Math.sin(py * 2.2 + t * 0.8) * 0.14 + Math.cos(pz * 1.8 - t * 0.5) * 0.10;
-            const fy = Math.cos(px * 1.8 - t * 0.8) * 0.14 + Math.sin(pz * 2.2 + t * 0.6) * 0.10;
-            const fz = Math.sin(px * 1.6 + t * 0.4) * 0.14 + Math.cos(py * 1.8 - t * 0.8) * 0.10;
+                // 3D vector flowfield combining twin vortices & stochastic sin waves
+                const fx = Math.sin(py * 2.2 + t * 0.8) * 0.14 + Math.cos(pz * 1.8 - t * 0.5) * 0.10;
+                const fy = Math.cos(px * 1.8 - t * 0.8) * 0.14 + Math.sin(pz * 2.2 + t * 0.6) * 0.10;
+                const fz = Math.sin(px * 1.6 + t * 0.4) * 0.14 + Math.cos(py * 1.8 - t * 0.8) * 0.10;
 
-            // Velocity update (fluid inertia)
-            pVelocities[i].x += (fx - pVelocities[i].x) * 0.08;
-            pVelocities[i].y += (fy - pVelocities[i].y) * 0.08;
-            pVelocities[i].z += (fz - pVelocities[i].z) * 0.08;
+                // Velocity update (fluid inertia)
+                sys.velocities[i].x += (fx - sys.velocities[i].x) * 0.08;
+                sys.velocities[i].y += (fy - sys.velocities[i].y) * 0.08;
+                sys.velocities[i].z += (fz - sys.velocities[i].z) * 0.08;
 
-            // Radial burst force when head cracks open
-            if (hoverState > 0.05) {
-                const dist = Math.sqrt(px*px + py*py + pz*pz);
-                if (dist > 0.1) {
-                    pVelocities[i].x += (px / dist) * 0.02 * hoverState;
-                    pVelocities[i].y += (py / dist) * 0.02 * hoverState;
-                    pVelocities[i].z += (pz / dist) * 0.02 * hoverState;
+                // Radial burst force when head cracks open
+                if (hoverState > 0.05) {
+                    const dist = Math.sqrt(px*px + py*py + pz*pz);
+                    if (dist > 0.1) {
+                        sys.velocities[i].x += (px / dist) * 0.02 * hoverState;
+                        sys.velocities[i].y += (py / dist) * 0.02 * hoverState;
+                        sys.velocities[i].z += (pz / dist) * 0.02 * hoverState;
+                    }
+                }
+
+                // Move particle
+                positions[i * 3]     += sys.velocities[i].x * 0.08 * speedMultiplier;
+                positions[i * 3 + 1] += sys.velocities[i].y * 0.08 * speedMultiplier;
+                positions[i * 3 + 2] += sys.velocities[i].z * 0.08 * speedMultiplier;
+
+                // Recirculate back to core if particles drift too far
+                const distSq = px*px + py*py + pz*pz;
+                if (distSq > 6.0) {
+                    const r = Math.random() * 0.28;
+                    const theta = Math.random() * Math.PI * 2;
+                    const phi = Math.acos((Math.random() * 2) - 1);
+
+                    positions[i * 3]     = r * Math.sin(phi) * Math.cos(theta);
+                    positions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
+                    positions[i * 3 + 2] = r * Math.cos(phi);
+
+                    sys.velocities[i].set(0, 0, 0);
                 }
             }
-
-            // Move particle
-            positions[i * 3]     += pVelocities[i].x * 0.08 * speedMultiplier;
-            positions[i * 3 + 1] += pVelocities[i].y * 0.08 * speedMultiplier;
-            positions[i * 3 + 2] += pVelocities[i].z * 0.08 * speedMultiplier;
-
-            // Recirculate back to core if particles drift too far
-            const distSq = px*px + py*py + pz*pz;
-            if (distSq > 6.0) {
-                const r = Math.random() * 0.28;
-                const theta = Math.random() * Math.PI * 2;
-                const phi = Math.acos((Math.random() * 2) - 1);
-
-                positions[i * 3]     = r * Math.sin(phi) * Math.cos(theta);
-                positions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
-                positions[i * 3 + 2] = r * Math.cos(phi);
-
-                pVelocities[i].set(0, 0, 0);
-            }
-        }
-        pGeometry.attributes.position.needsUpdate = true;
+            sys.geometry.attributes.position.needsUpdate = true;
+            
+            // Breathe particle sizing
+            sys.material.size = 0.12 + Math.sin(t * 1.5) * 0.025;
+        });
 
         // Core light glows intensely based on split state
         coreLight.intensity = hoverState * 5.0;
@@ -1829,11 +1833,8 @@ document.addEventListener('mouseover', (e) => {
         pointLight2.position.z = -Math.cos(t * 0.35) * 3.5;
 
         // Align particles to base rotation
-        particleSystem.rotation.y = rotationY;
-        particleSystem.rotation.x = rotationX;
-
-        // Breathe particle sizing
-        pMaterial.size = 0.065 + Math.sin(t * 1.5) * 0.015;
+        particleGroup.rotation.y = rotationY;
+        particleGroup.rotation.x = rotationX;
 
         renderer.render(scene,camera);
     })();
